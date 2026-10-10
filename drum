@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh‑CN">
+<head>
+    <meta charset="UTF‑8">
+    <meta name="viewport" content="width=device‑width, initial‑scale=1.0">
+    <title>格点 - 四轨十六步鼓机</title>
+    <style>
+        * {
+            margin:0;
+            padding:0;
+            box-sizing:border‑box;
+            font‑family:system‑ui,‑apple‑system,BlinkMacSystemFont,"Segoe UI",Roboto,sans‑serif;
+        }
+        body{
+            background:#1c1a16;
+            color:#fff;
+            padding:20px 12px;
+            max‑width:720px;
+            margin:0 auto;
+        }
+        .title{
+            font‑size:32px;
+            font‑weight:bold;
+            color:#ffbc2c;
+            margin‑bottom:4px;
+        }
+        .subtitle{
+            color:#999;
+            font‑size:15px;
+            margin‑bottom:24px;
+        }
+        .control‑row{
+            margin‑bottom:22px;
+        }
+        .label‑row{
+            display:flex;
+            justify‑content:space‑between;
+            margin‑bottom:8px;
+        }
+        .slider‑wrap{
+            width:100%;
+        }
+        input[type="range"]{
+            width:100%;
+            accent‑color:#ffbc2c;
+        }
+        .btn‑row‑main{
+            display:grid;
+            grid‑template‑columns:1fr 1fr;
+            gap:12px;
+            margin:20px 0;
+        }
+        .btn‑play{
+            background:#ffbc2c;
+            color:#111;
+            border:none;
+            padding:16px;
+            border‑radius:14px;
+            font‑weight:bold;
+            font‑size:18px;
+        }
+        .btn‑stop{
+            background:#332f28;
+            color:#ddd;
+            border:none;
+            padding:16px;
+            border‑radius:14px;
+            font‑weight:bold;
+            font‑size:18px;
+        }
+        .grid‑container{
+            overflow‑x:auto;
+            padding‑bottom:8px;
+        }
+        .grid{
+            display:grid;
+            grid‑template‑columns:repeat(16,52px);
+            gap:6px;
+        }
+        .track‑row{
+            display:contents;
+        }
+        .cell{
+            height:52px;
+            background:#2d2a24;
+            border‑radius:8px;
+            cursor:pointer;
+        }
+        .cell.on{
+            background:#ffbc2c;
+            box‑shadow:0 0 10px #ffbc2c70;
+        }
+        .cell.activeStep{
+            outline:2px solid #fff;
+        }
+        .track‑label{
+            width:42px;
+            display:flex;
+            align‑items:center;
+            color:#ccc;
+            font‑size:15px;
+        }
+        .preset‑row,.func‑row{
+            display:flex;
+            gap:10px;
+            margin‑top:16px;
+            flex‑wrap:wrap;
+        }
+        .small‑btn{
+            padding:10px 18px;
+            border‑radius:12px;
+            border:none;
+            background:#332f28;
+            color:#eee;
+            font‑size:15px;
+        }
+        .small‑btn.active{
+            background:#ffbc2c;
+            color:#111;
+        }
+        .tip{
+            margin‑top:28px;
+            color:#777;
+            font‑size:13px;
+            line‑height:1.55;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">格点</div>
+    <div class="subtitle">四轨十六步鼓机·点一下就响</div>
+
+    <div class="control‑row">
+        <div class="label‑row">
+            <span>速度</span>
+            <span id="bpmText">118 BPM</span>
+        </div>
+        <div class="slider‑wrap">
+            <input type="range" id="bpmSlider" min="60" max="180" value="118">
+        </div>
+    </div>
+
+    <div class="btn‑row‑main">
+        <button class="btn‑play" id="playBtn">▶ 播放</button>
+        <button class="btn‑stop" id="stopBtn">■ 停止</button>
+    </div>
+
+    <div class="control‑row">
+        <div class="label‑row">
+            <span>摇摆</span>
+            <span id="swingText">0% · 直拍</span>
+        </div>
+        <div class="slider‑wrap">
+            <input type="range" id="swingSlider" min="0" max="70" value="0">
+        </div>
+    </div>
+
+    <div class="control‑row">
+        <div class="label‑row">
+            <span>音量</span>
+            <span id="volText">78%</span>
+        </div>
+        <div class="slider‑wrap">
+            <input type="range" id="volSlider" min="0" max="100" value="78">
+        </div>
+    </div>
+
+    <div class="grid‑container">
+        <div style="display:flex;gap:6px;">
+            <div style="display:flex;flex‑direction:column;gap:6px;">
+                <div class="track‑label">底鼓 BD</div>
+                <div class="track‑label">军鼓 SD</div>
+                <div class="track‑label">踩镲 HH</div>
+                <div class="track‑label">打击 CP</div>
+            </div>
+            <div class="grid" id="gridWrap">
+                <!-- JS渲染16*4格子 -->
+            </div>
+        </div>
+    </div>
+
+    <div class="func‑row">
+        <button class="small‑btn" id="clearBtn">清空</button>
+        <button class="small‑btn" id="randomBtn">随机</button>
+    </div>
+    <div class="preset‑row">
+        <button class="small‑btn preset" data‑p="four">四拍</button>
+        <button class="small‑btn preset active" data‑p="funk">放克</button>
+        <button class="small‑btn preset" data‑p="break">断拍</button>
+        <button class="small‑btn preset" data‑p="pop">流行</button>
+    </div>
+
+    <div class="tip">
+        底鼓、军鼓、踩镲、打击乐各十六步。播放时当前步会亮起；摇摆把偶数步往后推。
+        空格键播放或停止。节奏自动保存在本机。手机横向滑动查看完整16步。
+    </div>
+
+<script>
+// ========= WebAudio 音频引擎 =========
+let audioCtx, masterGain;
+let isPlaying = false;
+let currentStep = 0;
+let timerId = null;
+let bpm = 118, swing = 0, volume = 0.78;
+const STEP_COUNT = 16;
+const TRACK_NAMES = ['bd','sd','hh','cp'];
+// pattern[轨道][步数] true=发声
+let pattern = Array(4).fill().map(()=>Array(STEP_COUNT).fill(false));
+
+// 预设节奏
+const presets = {
+    four:[[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],
+    funk:[[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0],[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],[0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0]],
+    break:[[1,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0],[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],[1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],[0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0]],
+    pop:[[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],[1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0],[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]]
+}
+
+// 初始化音频
+function initAudio(){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = volume;
+    masterGain.connect(audioCtx.destination);
+}
+
+// 合成四种鼓音色
+function playDrum(trackIdx, time){
+    if(!audioCtx) initAudio();
+    const t = time || audioCtx.currentTime;
+    if(trackIdx ===0){//BD底鼓
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type='sine';
+        o.frequency.setValueAtTime(58,t);
+        o.frequency.exponentialRampToValueAtTime(26,t+0.09);
+        g.gain.setValueAtTime(0.9,t);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.16);
+        o.connect(g);g.connect(masterGain);
+        o.start(t);o.stop(t+0.18);
+    }else if(trackIdx===1){//SD军鼓
+        const o = audioCtx.createOscillator();
+        const noise = audioCtx.createBufferSource();
+        const g = audioCtx.createGain();
+        const nGain = audioCtx.createGain();
+        o.type='triangle';
+        o.frequency.value=190;
+        g.gain.setValueAtTime(0.6,t);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+        o.connect(g);g.connect(masterGain);
+        o.start(t);o.stop(t+0.14);
+        const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.12,audioCtx.sampleRate);
+        let d=buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=Math.random()*2‑1;
+        noise.buffer=buf;
+        nGain.gain.setValueAtTime(0.55,t);
+        nGain.gain.exponentialRampToValueAtTime(0.001,t+0.11);
+        noise.connect(nGain);nGain.connect(masterGain);
+        noise.start(t);
+    }else if(trackIdx===2){//HH踩镲
+        const noise = audioCtx.createBufferSource();
+        const g = audioCtx.createGain();
+        const filter=audioCtx.createBiquadFilter();
+        filter.type='highpass';filter.frequency.value=7200;
+        const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.045,audioCtx.sampleRate);
+        let d=buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=Math.random()*2‑1;
+        noise.buffer=buf;
+        g.gain.setValueAtTime(0.38,t);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.042);
+        noise.connect(filter);filter.connect(g);g.connect(masterGain);
+        noise.start(t);
+    }else if(trackIdx===3){//打击clap
+        const noise = audioCtx.createBufferSource();
+        const g = audioCtx.createGain();
+        const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.07,audioCtx.sampleRate);
+        let d=buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=Math.random()*2‑1;
+        noise.buffer=buf;
+        g.gain.setValueAtTime(0.65,t);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.065);
+        noise.connect(g);g.connect(masterGain);
+        noise.start(t);
+    }
+}
+
+// 渲染网格
+function renderGrid(){
+    const wrap = document.getElementById('gridWrap');
+    wrap.innerHTML='';
+    for(let tr=0;tr<4;tr++){
+        const rowDiv=document.createElement('div');
+        rowDiv.className='track‑row';
+        for(let st=0;st<STEP_COUNT;st++){
+            const cell = document.createElement('div');
+            cell.className='cell' + (pattern[tr][st]?' on':'');
+            cell.dataset.track=tr;cell.dataset.step=st;
+            cell.onclick=()=>{
+                pattern[tr][st]=!pattern[tr][st];
+                cell.classList.toggle('on');
+                saveLocal();
+            }
+            wrap.appendChild(cell);
+        }
+    }
+}
+
+// 高亮当前步数
+function highlightStep(step){
+    document.querySelectorAll('.cell').forEach(c=>{
+        c.classList.remove('activeStep');
+        if(Number(c.dataset.step)===step && isPlaying) c.classList.add('activeStep');
+    })
+}
+
+// 播放逻辑
+function playStep(){
+    if(!isPlaying) return;
+    // swing：偶数拍延后
+    let stepTime = (60/bpm)/4;
+    let offset = (currentStep%2===1) ? stepTime*(swing/100*0.45) :0;
+    const now = audioCtx.currentTime + offset;
+    for(let t=0;t<4;t++){
+        if(pattern[t][currentStep]) playDrum(t,now);
+    }
+    highlightStep(currentStep);
+    currentStep=(currentStep+1)%STEP_COUNT;
+    timerId = setTimeout(playStep, (stepTime‑offset)*1000);
+}
+
+function startPlay(){
+    if(isPlaying) return;
+    if(!audioCtx) initAudio();
+    isPlaying=true;
+    currentStep=0;
+    playStep();
+}
+function stopPlay(){
+    isPlaying=false;
+    clearTimeout(timerId);
+    document.querySelectorAll('.cell').forEach(c=>c.classList.remove('activeStep'));
+}
+
+// 本地存储
+function saveLocal(){
+    localStorage.setItem('drumPattern',JSON.stringify(pattern));
+    localStorage.setItem('drumBpm',bpm);
+    localStorage.setItem('drumSwing',swing);
+    localStorage.setItem('drumVol',volume);
+}
+function loadLocal(){
+    const pat = localStorage.getItem('drumPattern');
+    if(pat) pattern=JSON.parse(pat);
+    const bb = localStorage.getItem('drumBpm');
+    if(bb) bpm=Number(bb),document.getElementById('bpmSlider').value=bpm,document.getElementById('bpmText').innerText=bpm+" BPM";
+    const sw = localStorage.getItem('drumSwing');
+    if(sw) swing=Number(sw),document.getElementById('swingSlider').value=swing,document.getElementById('swingText').innerText=swing+"% · 直拍";
+    const vl = localStorage.getItem('drumVol');
+    if(vl) volume=Number(vl),document.getElementById('volSlider').value=volume*100,document.getElementById('volText').innerText=Math.round(volume*100)+"%";
+}
+
+//绑定控件事件
+document.getElementById('playBtn').onclick=startPlay;
+document.getElementById('stopBtn').onclick=stopPlay;
+document.getElementById('bpmSlider').oninput=(e)=>{
+    bpm=Number(e.target.value);
+    document.getElementById('bpmText').innerText = bpm + " BPM"; saveLocal();
+}
+document.getElementById('swingSlider').oninput=(e)=>{
+    swing=Number(e.target.value);
+    document.getElementById('swingText').innerText = swing + "% · 直拍"; saveLocal();
+}
+document.getElementById('volSlider').oninput=(e)=>{
+    volume=Number(e.target.value)/100;
+    if(masterGain) masterGain.gain.value=volume;
+    document.getElementById('volText').innerText = Math.round(volume*100)+"%"; saveLocal();
+}
+document.getElementById('clearBtn').onclick=()=>{
+    pattern = Array(4).fill().map(()=>Array(STEP_COUNT).fill(false));
+    renderGrid();saveLocal();
+}
+document.getElementById('randomBtn').onclick=()=>{
+    pattern = Array(4).fill().map(()=>Array(STEP_COUNT).fill().map(()=>Math.random()>0.72));
+    renderGrid();saveLocal();
+}
+//预设按钮
+document.querySelectorAll('.preset').forEach(btn=>{
+    btn.onclick=()=>{
+        document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const key = btn.dataset.p;
+        const arr = presets[key];
+        for(let i=0;i<4;i++) for(let s=0;s<16;s++) pattern[i][s]=Boolean(arr[i][s]);
+        renderGrid();saveLocal();
+    }
+})
+//空格键启停
+window.onkeydown=(e)=>{
+    if(e.code==='Space'){ e.preventDefault(); isPlaying?stopPlay():startPlay(); }
+}
+
+//初始化
+loadLocal();
+renderGrid();
+</script>
+</body>
+</html>
